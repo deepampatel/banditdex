@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { access } from "node:fs/promises";
-import { adapterRefFromArena, loadAdapter } from "./lib/adapter-loader.mjs";
+import { adapterRefFromArena, loadAdapter, resolveArenaId } from "./lib/adapter-loader.mjs";
 import { arenaPaths, loadArenaSpec, parseArgs, slug, writeArenaArtifacts, writeEnvironmentArtifacts } from "./lib/workspace.mjs";
 
 function fallbackShock(type, args) {
@@ -15,9 +15,10 @@ function fallbackShock(type, args) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const arenaId = args.arena || "footballops-v0";
+  const arenaId = await resolveArenaId(args.arena);
   const workspace = args.workspace || ".ops-gym";
-  const type = args.type || "fixture_congestion";
+  const type = args.type;
+  if (!type) throw new Error("--type is required. Specify the shock type for this domain.");
   const arenaSpec = await loadArenaSpec(workspace, arenaId);
   const adapter = await loadAdapter(adapterRefFromArena(arenaSpec));
   const shock = adapter.buildShock ? adapter.buildShock(type, args) : fallbackShock(type, args);

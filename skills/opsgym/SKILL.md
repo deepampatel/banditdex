@@ -30,8 +30,8 @@ The scalable architecture is:
 - `opsgym.json` is the intended project-level session contract: project name, arena id, user question, workspace, rollouts, seed, and mode.
 - `.ops-gym/progress.md` is the intended cross-run journal for state-machine progress and major decisions.
 - Prefer one deep arena over many shallow arenas, but do not force a domain that the user did not ask for.
-- `footballops-v0` is the showcase executable adapter for demos and examples.
-- Bundled demo adapters are `footballops-v0`, `deliveryops-v0`, and `hospitalops-v0`.
+- The skill auto-discovers installed adapters at runtime. No adapter is hardcoded as the default.
+- Bundled adapters ship under `arenas/`. Run `list` to see what is installed.
 - Every recommendation must be backed by a tournament result, scorecard, or explicit assumption.
 - Scripted policies are baselines. The intended product experience is LLM decision agents competing inside arenas and being scored by rollouts. When the user asks to "run" an arena without specifying baseline or agents, prefer the agent workflow.
 - Arenas are first-class. Draft the world, review it, confirm it, then run it.
@@ -63,14 +63,11 @@ The scalable architecture is:
 
 ## Adapter Selection
 
-- Start from the user's situation, not from the bundled demo.
-- Use `footballops-v0` as the default showcase arena for demos, examples, and first-run smoke tests.
-- Use `deliveryops-v0` for delivery marketplaces, rider dispatch, SLA/refund pressure, rain, and surge demand demos.
-- Use `hospitalops-v0` for bed capacity, triage, staff fatigue, emergency surge, and elective deferral demos.
-- Use `footballops-v0` for fixture congestion, player rotation, injury risk, and match-readiness demos.
+- Start from the user's situation, not from a bundled demo.
+- Run `list` to see which adapters are installed. Match the user's domain to the closest adapter.
 - For a different domain, first design the arena in domain-native terms: actors, actions, constraints, shocks, policies, and metrics.
 - If no executable adapter exists for that domain yet, say that directly and offer to create a new adapter before running simulations.
-- Never rename an unrelated situation into football just because football is the showcase adapter.
+- Never force an unrelated domain just because an adapter exists.
 
 ## State-Machine Workflow
 

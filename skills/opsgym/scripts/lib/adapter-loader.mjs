@@ -1,4 +1,4 @@
-import { access } from "node:fs/promises";
+import { access, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { SKILL_DIR } from "./workspace.mjs";
@@ -30,6 +30,26 @@ export function resolveAdapterPath(adapterRef) {
     ? adapterRef.entry
     : `arenas/${adapterId}/adapter.mjs`;
   return resolve(SKILL_DIR, entry);
+}
+
+export async function discoverFirstAdapter() {
+  const arenasDir = resolve(SKILL_DIR, "arenas");
+  try {
+    const entries = await readdir(arenasDir, { withFileTypes: true });
+    for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+      if (!entry.isDirectory()) continue;
+      const adapterPath = resolve(arenasDir, entry.name, "adapter.mjs");
+      try { await access(adapterPath); return entry.name; } catch { /* skip */ }
+    }
+  } catch { /* arenas dir missing */ }
+  return null;
+}
+
+export async function resolveArenaId(explicit) {
+  if (explicit) return explicit;
+  const discovered = await discoverFirstAdapter();
+  if (!discovered) throw new Error("No installed adapters found. Create one under arenas/<id>/adapter.mjs");
+  return discovered;
 }
 
 export async function loadAdapter(adapterRef) {

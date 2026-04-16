@@ -5,8 +5,8 @@ import { slug } from "./workspace.mjs";
 
 export const DEFAULT_WORKSPACE = ".ops-gym";
 export const DEFAULT_CONFIG_FILE = "opsgym.json";
-export const DEFAULT_ARENA_ID = "footballops-v0";
-export const DEFAULT_QUESTION = "Should the club rotate heavily or push starters through fixture congestion?";
+export const DEFAULT_ARENA_ID = null; // resolved at runtime from installed adapters
+export const DEFAULT_QUESTION = null; // resolved at runtime from adapter defaults
 
 export function configPathFromArgs(args = {}) {
   return resolve(args.config || DEFAULT_CONFIG_FILE);

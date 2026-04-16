@@ -87,11 +87,26 @@ async function checkSkill() {
 }
 
 async function checkAdapters() {
+  const { discoverFirstAdapter } = await import("./lib/adapter-loader.mjs");
+  const arenasDir = resolve(SKILL_DIR, "arenas");
   try {
-    const adapter = await loadAdapter("footballops-v0");
-    pass("adapter footballops-v0", adapter.adapterMeta.description);
+    const { readdir } = await import("node:fs/promises");
+    const entries = await readdir(arenasDir, { withFileTypes: true });
+    let found = 0;
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const adapterPath = resolve(arenasDir, entry.name, "adapter.mjs");
+      try {
+        const adapter = await loadAdapter(entry.name);
+        pass(`adapter ${entry.name}`, adapter.adapterMeta.description);
+        found += 1;
+      } catch (error) {
+        fail(`adapter ${entry.name}`, error.message || String(error));
+      }
+    }
+    if (found === 0) fail("adapters", "no installed adapters found");
   } catch (error) {
-    fail("adapter footballops-v0", error.message || String(error));
+    fail("adapters", error.message || String(error));
   }
 }
 
@@ -104,6 +119,9 @@ async function checkScriptSyntax() {
 }
 
 async function checkSmokeRun() {
+  const { discoverFirstAdapter } = await import("./lib/adapter-loader.mjs");
+  const smokeArena = await discoverFirstAdapter();
+  if (!smokeArena) { fail("smoke run", "no adapters installed to smoke-test"); return; }
   const workspace = await mkdtemp(resolve(tmpdir(), "opsgym-doctor-"));
   const config = resolve(workspace, "opsgym.json");
   try {
@@ -112,8 +130,7 @@ async function checkSmokeRun() {
       "--config", config,
       "--workspace", resolve(workspace, ".ops-gym"),
       "--project", "doctor-smoke",
-      "--arena", "footballops-v0",
-      "--question", "Should the smoke test rotate players through fixture congestion?",
+      "--arena", smokeArena,
       "--rollouts", "5"
     ]);
     if (init.status !== 0) throw new Error(processOutput(init) || "init failed");

@@ -10,7 +10,7 @@ async function main() {
 
   if (!config) {
     console.log(`No OpsGym config found at ${configPath}`);
-    console.log("Next: ./opsgym init --arena footballops-v0 --question \"<decision to simulate>\"");
+    console.log("Next: ./opsgym init --arena <adapter-id> --question \"<decision to simulate>\"");
     return;
   }
 

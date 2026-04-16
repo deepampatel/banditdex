@@ -32,7 +32,7 @@ function renderBrief({ runId, arena, agentCount, environment, brief }) {
     "",
     "Create distinct decision agents for this arena. Each agent should have a clear thesis and numeric parameters that encode how it behaves in rollouts.",
     "",
-    "Do not make tiny variants of the same agent. Prefer meaningful contrasts such as cash protection, service resilience, growth, route caution, payment fallback strength, or risk appetite.",
+    "Do not make tiny variants of the same agent. Prefer meaningful contrasts: protect vs push, conservative vs aggressive, resilience vs throughput, risk-averse vs risk-seeking.",
     "",
     "## Parameter Contract",
     "",
@@ -64,7 +64,8 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   const configPath = configPathFromArgs(args);
   const config = await readProjectConfigMaybe(configPath);
-  const arena = args.arena || config?.arenaId || "footballops-v0";
+  const { resolveArenaId } = await import("./lib/adapter-loader.mjs");
+  const arena = await resolveArenaId(args.arena || config?.arenaId);
   const workspace = args.workspace || config?.workspace || ".ops-gym";
   const runId = args.run || `${config?.project || "agent"}-agents`;
   const agentCount = Number.parseInt(args.agents || 3, 10);

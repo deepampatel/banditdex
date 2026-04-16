@@ -1,9 +1,10 @@
 #!/usr/bin/env node
+import { resolveArenaId } from "./lib/adapter-loader.mjs";
 import { loadArenaSpec, parseArgs, writeArenaArtifacts } from "./lib/workspace.mjs";
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const arenaId = args.arena || "footballops-v0";
+  const arenaId = await resolveArenaId(args.arena);
   const workspace = args.workspace || ".ops-gym";
   const arenaSpec = await loadArenaSpec(workspace, arenaId);
 

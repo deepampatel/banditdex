@@ -199,7 +199,8 @@ function compactRollouts(allRollouts) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const arena = args.arena || "footballops-v0";
+  const { resolveArenaId } = await import("./lib/adapter-loader.mjs");
+  const arena = await resolveArenaId(args.arena);
   const workspace = args.workspace || ".ops-gym";
   const runId = args.run || `run-${new Date().toISOString().slice(0, 10)}`;
   const rollouts = Number(args.rollouts || 100);

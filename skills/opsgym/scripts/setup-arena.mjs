@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-import { loadAdapter } from "./lib/adapter-loader.mjs";
+import { loadAdapter, resolveArenaId } from "./lib/adapter-loader.mjs";
 import { parseArgs, splitList, writeArenaArtifacts } from "./lib/workspace.mjs";
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const arenaId = args.arena || "footballops-v0";
+  const arenaId = await resolveArenaId(args.arena);
   const workspace = args.workspace || ".ops-gym";
-  const question = args.question || "Should the club rotate heavily or push starters through fixture congestion?";
+  const question = args.question; // adapter provides default if omitted
   const setupMode = args.mode || "fast";
 
   const adapter = await loadAdapter(arenaId);
