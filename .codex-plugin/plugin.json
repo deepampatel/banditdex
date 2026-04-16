@@ -26,9 +26,9 @@
       "Interactive"
     ],
     "defaultPrompt": [
-      "Use $opsgym to draft a KiranaOps arena.",
-      "Use $opsgym to confirm an arena and run a policy tournament.",
-      "Use $opsgym to add a UPI shock and rerun the gym."
+      "Use $opsgym. Run footballops-v0. Should the club rotate heavily or push starters through fixture congestion? Create agents, run 100 rollouts, and explain who wins.",
+      "Use $opsgym. Run deliveryops-v0. Should the marketplace accept surge demand during rain or protect SLA? Run agent tournament and compare with baseline.",
+      "Use $opsgym. Run hospitalops-v0. Should the hospital defer elective work during a surge? Add a flu-surge shock and rerun."
     ],
     "brandColor": "#0F766E"
   }

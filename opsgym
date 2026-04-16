@@ -30,7 +30,7 @@ Usage:
   ./opsgym env [--arena <id>]
   ./opsgym shock [--arena <id>] --type <shock> [--day <n>] [--severity <0..1>]
   ./opsgym run [--arena <id>] [--run <id>] [--rollouts <n>]
-  ./opsgym demo
+  ./opsgym showcase [--arena <id>]
 EOF
 }
 
@@ -87,26 +87,57 @@ case "$cmd" in
     "$NODE_BIN" "$SCRIPT_DIR/create-env.mjs" "$@"
     "$NODE_BIN" "$SCRIPT_DIR/run-tournament.mjs" "$@"
     ;;
-  demo)
+  showcase)
+    # Parse --arena flag, default to footballops-v0
+    DEMO_ARENA="footballops-v0"
+    prev_arg=""
+    for arg in "$@"; do
+      if [[ "$prev_arg" == "--arena" ]]; then
+        DEMO_ARENA="$arg"
+      fi
+      prev_arg="$arg"
+    done
+
     rm -rf .ops-gym
+    echo ""
+    echo "=== Step 1: Draft arena ($DEMO_ARENA) ==="
     "$NODE_BIN" "$SCRIPT_DIR/setup-arena.mjs" \
-      --arena "footballops-v0" \
-      --question "Should the club rotate heavily or push starters through fixture congestion?" \
+      --arena "$DEMO_ARENA" \
       --workspace ".ops-gym"
-    "$NODE_BIN" "$SCRIPT_DIR/confirm-arena.mjs" --arena "footballops-v0" --workspace ".ops-gym"
-    "$NODE_BIN" "$SCRIPT_DIR/add-shock.mjs" \
-      --arena "footballops-v0" \
-      --type "fixture_congestion" \
-      --day "3" \
-      --severity "0.55" \
-      --label "Midweek cup tie compresses recovery" \
-      --workspace ".ops-gym"
-    "$NODE_BIN" "$SCRIPT_DIR/create-env.mjs" --arena "footballops-v0" --workspace ".ops-gym"
+    echo ""
+    echo "=== Step 2: Confirm arena ==="
+    "$NODE_BIN" "$SCRIPT_DIR/confirm-arena.mjs" --arena "$DEMO_ARENA" --workspace ".ops-gym"
+    echo ""
+    echo "=== Step 3: Create environment ==="
+    "$NODE_BIN" "$SCRIPT_DIR/create-env.mjs" --arena "$DEMO_ARENA" --workspace ".ops-gym"
+    echo ""
+    echo "=== Step 4: Run baseline policy tournament (100 rollouts) ==="
     "$NODE_BIN" "$SCRIPT_DIR/run-tournament.mjs" \
-      --arena "footballops-v0" \
-      --run "football-rotation-demo" \
+      --arena "$DEMO_ARENA" \
+      --run "baseline" \
       --rollouts "100" \
       --workspace ".ops-gym"
+    echo ""
+    echo "=== Step 5: Run agent tournament — 4 agents compete (100 rollouts) ==="
+    "$NODE_BIN" "$SCRIPT_DIR/run-agent-tournament.mjs" \
+      --arena "$DEMO_ARENA" \
+      --run "agents" \
+      --agents "4" \
+      --offline \
+      --rollouts "100" \
+      --workspace ".ops-gym"
+    echo ""
+    echo "=== Step 6: Compare baseline vs agent tournament ==="
+    "$NODE_BIN" "$SCRIPT_DIR/compare-runs.mjs" \
+      --baseline "baseline" \
+      --candidate "agents" \
+      --workspace ".ops-gym"
+    echo ""
+    echo "=== Showcase complete ==="
+    echo "Reports:"
+    echo "  Baseline:   .ops-gym/reports/baseline.html"
+    echo "  Agents:     .ops-gym/reports/agents.html"
+    echo "  Comparison: .ops-gym/reports/baseline-vs-agents.html"
     ;;
   help|-h|--help|"")
     usage

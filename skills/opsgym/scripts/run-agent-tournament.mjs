@@ -37,25 +37,33 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
-function offlinePlans(count) {
+function offlinePlans(count, environment) {
+  const shockCount = (environment?.shocks || []).length;
+  const hasShocks = shockCount > 0;
   const plans = [
     {
-      id: "agent-resilience-first",
-      name: "Agent: Resilience first",
-      thesis: "Protect service during shocks with strong fallback recovery and high-priority capacity focus.",
-      parameters: { capacityAggression: 0.64, riskTolerance: 0.58, executionAggression: 1.02, fallbackRecovery: 0.96, priorityFocus: 0.94 }
+      id: "agent-resilience",
+      name: "Resilience Agent",
+      thesis: `Protect service level during ${hasShocks ? 'shocks' : 'volatility'} by deploying strong fallback recovery and focusing capacity on high-priority entities. Accept moderate throughput to keep risk and backlog low.`,
+      parameters: { capacityAggression: 0.42, riskTolerance: 0.28, executionAggression: 0.82, fallbackRecovery: 0.92, priorityFocus: 0.88 }
     },
     {
-      id: "agent-cash-guardian",
-      name: "Agent: Risk guardian",
-      thesis: "Preserve scarce capacity and accept some missed throughput to avoid downside risk.",
-      parameters: { capacityAggression: 0.34, riskTolerance: 0.3, executionAggression: 0.78, fallbackRecovery: 0.35, priorityFocus: 0.58 }
+      id: "agent-throughput",
+      name: "Throughput Agent",
+      thesis: "Maximize throughput by pushing execution aggression and capacity deployment hard. Accept elevated risk and operating cost as the price of higher output across all entities.",
+      parameters: { capacityAggression: 0.88, riskTolerance: 0.82, executionAggression: 1.12, fallbackRecovery: 0.55, priorityFocus: 0.48 }
     },
     {
-      id: "agent-growth-push",
-      name: "Agent: Performance push",
-      thesis: "Push execution aggressively, relying on high throughput to offset risk and operating cost.",
-      parameters: { capacityAggression: 0.92, riskTolerance: 0.78, executionAggression: 1.1, fallbackRecovery: 0.62, priorityFocus: 0.52 }
+      id: "agent-balanced",
+      name: "Balanced Agent",
+      thesis: `Maintain a balanced posture: moderate capacity deployment, selective priority focus on fragile entities, and enough fallback to absorb ${hasShocks ? 'shock spillover' : 'demand spikes'} without overspending.`,
+      parameters: { capacityAggression: 0.58, riskTolerance: 0.52, executionAggression: 0.95, fallbackRecovery: 0.78, priorityFocus: 0.72 }
+    },
+    {
+      id: "agent-conservative",
+      name: "Conservative Agent",
+      thesis: "Preserve capacity and minimize risk exposure. Accept lower throughput and service level to keep operating cost and downside risk as low as possible. Strong fallback to cover any missed demand safely.",
+      parameters: { capacityAggression: 0.32, riskTolerance: 0.18, executionAggression: 0.72, fallbackRecovery: 0.88, priorityFocus: 0.65 }
     }
   ];
   return plans.slice(0, count);
@@ -144,12 +152,38 @@ function renderAgentMemo({ runId, model, source, agentPlans, scoreboard, wins, r
   ].join("\n");
 }
 
-function renderAgentReport({ runId, model, source, agentPlans, scoreboard, wins }) {
+function renderAgentReport({ runId, model, source, agentPlans, scoreboard, wins, rollouts, environment }) {
+  const winner = scoreboard[0];
+  const runnerUp = scoreboard[1];
+  const totalRollouts = rollouts || "?";
+  const question = environment?.question || "";
+
   const rows = scoreboard.map((row, index) => {
     const service = Number.isFinite(row.averages.serviceLevel) ? `${Math.round(row.averages.serviceLevel * 100)}%` : "-";
-    return `<tr><td>${index + 1}</td><td><strong>${escapeHtml(row.policyName)}</strong><br><span>${escapeHtml(row.description)}</span></td><td>${row.averages.opsScore?.toLocaleString("en-IN")}</td><td>${service}</td><td>${wins[row.policy] || 0}</td></tr>`;
+    const throughput = row.averages.throughput?.toLocaleString("en-IN") ?? "-";
+    const risk = row.averages.risk?.toLocaleString("en-IN") ?? "-";
+    const cost = row.averages.operatingCost?.toLocaleString("en-IN") ?? "-";
+    const winPct = totalRollouts !== "?" ? `${Math.round(((wins[row.policy] || 0) / totalRollouts) * 100)}%` : `${wins[row.policy] || 0}`;
+    return `<tr${index === 0 ? ' class="winner-row"' : ''}><td>${index + 1}</td><td><strong>${escapeHtml(row.policyName)}</strong><br><span>${escapeHtml(row.description)}</span></td><td>${row.averages.opsScore?.toLocaleString("en-IN")}</td><td>${throughput}</td><td>${service}</td><td>${risk}</td><td>${cost}</td><td>${winPct}</td></tr>`;
   }).join("");
-  const agentCards = agentPlans.map((agent) => `<article><h3>${escapeHtml(agent.name)}</h3><p>${escapeHtml(agent.description)}</p><pre>${escapeHtml(JSON.stringify(agent.parameters, null, 2))}</pre></article>`).join("");
+
+  const agentCards = agentPlans.map((agent, index) => {
+    const rank = scoreboard.findIndex((row) => row.policy === agent.id);
+    const rankLabel = rank === 0 ? '<span class="badge winner">Winner</span>' : rank >= 0 ? `<span class="badge">Rank ${rank + 1}</span>` : '';
+    return `<article${rank === 0 ? ' class="winner-card"' : ''}>
+    <div class="card-header"><h3>${escapeHtml(agent.name)}</h3>${rankLabel}</div>
+    <p class="thesis">${escapeHtml(agent.description)}</p>
+    <div class="params">
+      ${Object.entries(agent.parameters || {}).map(([key, value]) => {
+        const pct = Math.round(Number(value) * 100);
+        return `<div class="param"><span class="param-label">${key.replace(/([A-Z])/g, ' $1').trim()}</span><div class="param-bar"><div class="param-fill" style="width:${Math.min(pct, 100)}%"></div></div><span class="param-value">${Number(value).toFixed(2)}</span></div>`;
+      }).join("")}
+    </div>
+  </article>`;
+  }).join("");
+
+  const winnerMargin = winner && runnerUp ? (winner.averages.opsScore - runnerUp.averages.opsScore).toLocaleString("en-IN") : "N/A";
+
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -157,38 +191,76 @@ function renderAgentReport({ runId, model, source, agentPlans, scoreboard, wins 
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>OpsGym Agent Tournament - ${runId}</title>
   <style>
-    :root { color-scheme: light; --ink: #17211f; --muted: #63706d; --line: #dbe4df; --paper: #f7faf8; --white: #ffffff; --accent: #0f766e; }
+    :root { color-scheme: light; --ink: #17211f; --muted: #63706d; --line: #dbe4df; --paper: #f7faf8; --white: #ffffff; --accent: #0f766e; --gold: #b7791f; --red: #b42318; }
     * { box-sizing: border-box; }
     body { margin: 0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--paper); color: var(--ink); }
-    main { width: min(1080px, calc(100% - 32px)); margin: 0 auto; padding: 32px 0 48px; }
-    header { border-bottom: 1px solid var(--line); padding-bottom: 20px; }
-    h1 { font-size: clamp(30px, 5vw, 54px); line-height: 1; margin: 0 0 12px; }
+    main { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 32px 0 48px; }
+    header { display: grid; gap: 16px; grid-template-columns: 1.3fr 0.7fr; align-items: end; border-bottom: 1px solid var(--line); padding-bottom: 24px; }
+    h1 { font-size: clamp(28px, 4.5vw, 50px); line-height: 1.05; margin: 0; max-width: 850px; }
+    h2 { font-size: 22px; margin: 0 0 14px; }
     p { color: var(--muted); line-height: 1.55; margin: 0; }
-    section { margin-top: 26px; }
+    .hero { background: var(--ink); color: white; padding: 18px; border-radius: 8px; }
+    .hero p { color: #d7e3df; }
+    .hero strong { color: #8ee4d4; display: block; font-size: 22px; margin-top: 4px; }
+    .hero .margin { color: #a8d8cf; font-size: 14px; margin-top: 6px; }
+    .memo { border-left: 5px solid var(--accent); background: var(--white); padding: 18px; border-radius: 8px; margin-top: 24px; }
+    .memo p { color: var(--ink); }
+    section { margin-top: 28px; }
     table { width: 100%; border-collapse: collapse; background: var(--white); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
-    th, td { padding: 13px 12px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
-    th { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0; background: #edf5f2; }
+    th, td { padding: 13px 10px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0; background: #edf5f2; }
     td span { color: var(--muted); font-size: 13px; }
-    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-    article { background: var(--white); border: 1px solid var(--line); border-radius: 8px; padding: 14px; }
-    h3 { margin: 0 0 8px; }
-    pre { overflow: auto; background: #edf5f2; border-radius: 8px; padding: 10px; }
-    @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } table { display: block; overflow-x: auto; } }
+    .winner-row { background: #f0fdf9; }
+    .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+    article { background: var(--white); border: 1px solid var(--line); border-radius: 8px; padding: 16px; }
+    .winner-card { border-color: var(--accent); border-width: 2px; }
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    h3 { margin: 0; font-size: 17px; }
+    .badge { font-size: 11px; padding: 3px 8px; border-radius: 4px; background: #edf5f2; color: var(--muted); font-weight: 600; }
+    .badge.winner { background: var(--accent); color: white; }
+    .thesis { font-size: 14px; line-height: 1.5; margin: 0 0 12px; color: var(--ink); }
+    .params { display: grid; gap: 6px; }
+    .param { display: grid; grid-template-columns: 140px 1fr 44px; align-items: center; gap: 8px; font-size: 12px; }
+    .param-label { color: var(--muted); text-transform: capitalize; }
+    .param-bar { height: 6px; background: #edf5f2; border-radius: 3px; overflow: hidden; }
+    .param-fill { height: 100%; background: var(--accent); border-radius: 3px; }
+    .param-value { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .source-tag { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 4px; background: #edf5f2; color: var(--accent); font-weight: 600; margin-top: 8px; }
+    pre { overflow: auto; background: #edf5f2; border-radius: 8px; padding: 10px; font-size: 12px; }
+    @media (max-width: 860px) { header { grid-template-columns: 1fr; } .grid { grid-template-columns: 1fr; } table { display: block; overflow-x: auto; } }
   </style>
 </head>
 <body>
   <main>
     <header>
-      <p>OpsGym Agent Tournament / ${escapeHtml(source)} / ${escapeHtml(model)}</p>
-      <h1>${escapeHtml(runId)}</h1>
-      <p>LLM-designed decision agents evaluated through repeated simulation rollouts.</p>
+      <div>
+        <p>OpsGym Agent Tournament</p>
+        <h1>${question ? escapeHtml(question) : escapeHtml(runId)}</h1>
+        <span class="source-tag">${escapeHtml(source)} / ${escapeHtml(model)}</span>
+      </div>
+      <aside class="hero">
+        <p>Winning agent</p>
+        <strong>${escapeHtml(winner.policyName)}</strong>
+        <p>${escapeHtml(winner.description)}</p>
+        <p class="margin">OpsScore ${winner.averages.opsScore?.toLocaleString("en-IN")} | Won ${wins[winner.policy] || 0}/${totalRollouts} rollouts | +${winnerMargin} over runner-up</p>
+      </aside>
     </header>
-    <section>
-      <h2>Leaderboard</h2>
-      <table><thead><tr><th>Rank</th><th>Agent</th><th>OpsScore</th><th>Service</th><th>Wins</th></tr></thead><tbody>${rows}</tbody></table>
+
+    <section class="memo">
+      <h2>Why ${escapeHtml(winner.policyName)} Won</h2>
+      <p>${escapeHtml(winner.policyName)} achieved the highest composite OpsScore across ${totalRollouts} rollouts by ${winner.averages.serviceLevel > (runnerUp?.averages?.serviceLevel || 0) ? 'maintaining superior service levels' : 'driving higher throughput'} while ${winner.averages.risk < (runnerUp?.averages?.risk || Infinity) ? 'keeping risk below competitors' : 'accepting calculated risk for higher returns'}. ${runnerUp ? `Runner-up ${escapeHtml(runnerUp.policyName)} scored ${runnerUp.averages.opsScore?.toLocaleString("en-IN")} but ${runnerUp.averages.risk > winner.averages.risk ? 'carried more downside risk' : 'sacrificed throughput for safety'}.` : ''}</p>
     </section>
+
     <section>
-      <h2>Agent Plans</h2>
+      <h2>Agent Leaderboard</h2>
+      <table>
+        <thead><tr><th>Rank</th><th>Agent</th><th>OpsScore</th><th>Throughput</th><th>Service</th><th>Risk</th><th>Cost</th><th>Win Rate</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Agent Strategies</h2>
       <div class="grid">${agentCards}</div>
     </section>
   </main>
@@ -216,7 +288,7 @@ async function main() {
   const rawPlans = args["agents-file"]
     ? await readAgentPlansFile(args["agents-file"], agentCount)
     : args.offline
-      ? offlinePlans(agentCount)
+      ? offlinePlans(agentCount, environment)
       : await callOpenAI({ model, environment, count: agentCount });
   assertValidAgentPlans(rawPlans, { strict: Boolean(args["agents-file"]) });
   const agentPlans = normalizePlans(rawPlans, source, model);
@@ -266,7 +338,7 @@ async function main() {
   await writeFile(resolve(runDir, "rollouts.json"), `${JSON.stringify(compactRollouts(allRollouts), null, 2)}\n`);
   await writeFile(resolve(runDir, "scores.json"), `${JSON.stringify({ runId, arena, mode: "agent-tournament", scoreboard, wins }, null, 2)}\n`);
   await writeFile(resolve(runDir, "decision-memo.md"), `${renderAgentMemo({ runId, model, source, agentPlans, scoreboard, wins, reportPath })}\n`);
-  await writeFile(reportPath, renderAgentReport({ runId, model, source, agentPlans, scoreboard, wins }));
+  await writeFile(reportPath, renderAgentReport({ runId, model, source, agentPlans, scoreboard, wins, rollouts, environment }));
 
   if (config) await appendProgress(config, `ran LLM agent tournament ${runId} with ${rollouts} rollouts`);
 

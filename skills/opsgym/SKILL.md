@@ -245,20 +245,61 @@ Hospital:
 Use $opsgym. Run hospitalops-v0. Should the hospital defer elective work to protect emergency capacity during a surge? Create Codex-authored agents, validate them, run 50 rollouts, and report the clinical-risk tradeoff.
 ```
 
-## Recommended Demo Prompt For Showcase Football Adapter
+## Recommended Demo Prompt: Agents Competing
+
+The primary showcase is LLM-designed agents competing inside a simulation arena. Codex reads the environment brief, designs distinct decision agents, and the runner scores them through stochastic rollouts.
 
 ```text
 Use $opsgym.
 
 Business question:
-Should the club rotate heavily or push starters through fixture congestion?
+<user's operational question here>
 
 Tasks:
-1. Draft a fast FootballOps-v0 arena and show me the summary.
+1. Draft a fast arena from the question and show me the summary.
+2. Confirm the arena and create the environment.
+3. Run a baseline policy tournament with 100 rollouts.
+4. Read the environment brief and create 4 distinct decision agents with meaningfully different strategies.
+5. Validate the agents and run the agent tournament with 100 rollouts.
+6. Compare baseline vs agent results.
+7. Explain which agent won and why — backed by the scorecard.
+```
+
+For any bundled adapter, Codex should:
+
+1. Call `agent-brief` to generate a brief from the confirmed environment.
+2. Read the brief and design agents that contrast on the 5 parameter levers.
+3. Write the agent JSON, validate, and run.
+4. Interpret the scoreboard and write the recommendation narrative.
+
+The agents must be meaningfully different — not tiny variants. Good contrasts: resilience vs throughput, conservative vs aggressive, shock-absorbing vs peak-performance.
+
+## Showcase (CLI)
+
+Full arena-to-agents-to-comparison pipeline in one command, using built-in archetype agents:
+
+```bash
+./opsgym showcase
+./opsgym showcase --arena deliveryops-v0
+./opsgym showcase --arena hospitalops-v0
+```
+
+Runs the full pipeline: setup -> confirm -> env -> baseline tournament -> 4-agent tournament -> comparison. Three HTML reports are generated under `.ops-gym/reports/`. Works with any installed adapter.
+
+## Recommended Demo Prompt: Baseline Only
+
+```text
+Use $opsgym.
+
+Business question:
+<user's operational question here>
+
+Tasks:
+1. Draft an arena and show me the summary.
 2. Ask me for any critical edits before confirmation.
 3. Confirm the arena, create the environment, and run 100 rollouts.
-4. Add a midweek cup congestion shock and rerun the gym.
-5. Render a dashboard and recommendation memo.
+4. Add a relevant shock and rerun the gym.
+5. Compare baseline vs shocked results and render a recommendation memo.
 ```
 
 ## References
