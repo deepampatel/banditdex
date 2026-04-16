@@ -49,6 +49,19 @@ The key design principle is separation:
 - HTML reports, JSON contracts, scorecards, rollouts, and decision memos
 - Adapter interface for adding new executable domains
 
+## Install
+
+Requires Node.js 18+.
+
+```bash
+git clone https://github.com/deepampatel/banditdex.git
+cd banditdex
+chmod +x banditdex
+./banditdex doctor
+```
+
+No `npm install` needed — zero external dependencies.
+
 ## Built-In Runnable Arenas
 
 BanditDex currently ships three executable adapters:
